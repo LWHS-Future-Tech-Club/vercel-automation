@@ -41,7 +41,6 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         name: repoName,
         gitRepository: { type: 'github', repo: `${orgName}/${repoName}` },
-        framework: 'nextjs', // optional, can remove if not Next.js
       }),
     });
 
