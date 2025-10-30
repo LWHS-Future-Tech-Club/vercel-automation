@@ -15,6 +15,11 @@ export default async function handler(req, res) {
     const payload = req.body;
     console.log('Payload:', payload);
 
+    // Only act on new repo creation
+    if (req.headers['x-github-event'] !== 'repository' || payload.action !== 'created') {
+      return res.status(200).json({ message: 'No action needed' });
+    }
+
     const repoName = payload.repository?.name;
     const orgName = payload.repository?.owner?.login;
 
@@ -26,7 +31,8 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'VERCEL_TOKEN not set' });
     }
 
-    const response = await fetch('https://api.vercel.com/v9/projects', {
+    // 1️⃣ Create the project
+    const createResp = await fetch('https://api.vercel.com/v9/projects', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${process.env.VERCEL_TOKEN}`,
@@ -35,13 +41,34 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         name: repoName,
         gitRepository: { type: 'github', repo: `${orgName}/${repoName}` },
+        framework: 'nextjs', // optional, can remove if not Next.js
       }),
     });
 
-    const data = await response.json();
-    console.log('Vercel response:', data);
+    const projectData = await createResp.json();
+    console.log('Project creation response:', projectData);
 
-    res.status(200).json({ success: true, data });
+    if (!projectData.id) {
+      return res.status(500).json({ error: 'Project creation failed', data: projectData });
+    }
+
+    const projectId = projectData.id;
+    const subdomain = `${repoName}.lwhsftc.org`;
+
+    // 2️⃣ Assign the subdomain
+    const domainResp = await fetch(`https://api.vercel.com/v9/projects/${projectId}/domains`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.VERCEL_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name: subdomain }),
+    });
+
+    const domainData = await domainResp.json();
+    console.log('Domain assignment response:', domainData);
+
+    res.status(200).json({ success: true, projectData, domainData });
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ error: error.message });
