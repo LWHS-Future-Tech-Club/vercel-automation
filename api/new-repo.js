@@ -15,7 +15,6 @@ export default async function handler(req, res) {
     const payload = req.body;
     console.log('Payload:', payload);
 
-    // Only act on new repo creation
     if (req.headers['x-github-event'] !== 'repository' || payload.action !== 'created') {
       return res.status(200).json({ message: 'No action needed' });
     }
@@ -31,7 +30,6 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'VERCEL_TOKEN not set' });
     }
 
-    // 1️⃣ Create the project
     const createResp = await fetch('https://api.vercel.com/v9/projects', {
       method: 'POST',
       headers: {
@@ -54,7 +52,7 @@ export default async function handler(req, res) {
     const projectId = projectData.id;
     const subdomain = `${repoName}.lwhsftc.org`;
 
-    // 2️⃣ Assign the subdomain
+    // subdomain assignment 
     const domainResp = await fetch(`https://api.vercel.com/v9/projects/${projectId}/domains`, {
       method: 'POST',
       headers: {
